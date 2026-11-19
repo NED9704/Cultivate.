@@ -55,11 +55,12 @@ Warm and cosy, like a cafe-bookshop that smells of coffee and hot chocolate. Kee
 | background | #261505 | #FBF4E9 | App background |
 | text | #FBF4E9 | #2E1A06 | Main text |
 | textSecondary | #E6D5BE | #6B4532 | Secondary text on the background |
-| logo | #E6D5BE | #2E1A06 | "Cultivate." letters (the dot is accentText) |
+| logo | #CDB79B | #4A2E1C | "Cultivate." letters (the dot is accentText) |
+| heading | #E6D5BE | #6B4532 | Books / Movies / Series heading |
 | surface | #E6D5BE | #E6D5BE | Latte beige cards. Text on it is #362304, never creme. |
 | muted | #6B4532 | #6B4532 | Secondary text, icons and borders **on beige cards only** |
 | accent | #B85E00 | #B85E00 | Sienna: "+" button, stars, filled buttons. Text on it is #362304, bold. |
-| accentText | #D9781F | #B85E00 | Sienna for text on the background: selected tab, category heading, logo dot. Light mode uses the deeper brand sienna so it stays readable on creme (4.1:1). |
+| accentText | #D9781F | #B85E00 | Sienna for text on the background: selected tab, selected status, logo dot. Light mode uses the deeper brand sienna so it stays readable on creme (4.1:1). |
 | divider | #6B4532 | #D9C4A8 | Thin lines on the background |
 | book / movie / series | #B85E00 / #A87452 / #C9A06A | same | Media-type accents |
 

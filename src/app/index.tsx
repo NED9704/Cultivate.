@@ -228,7 +228,7 @@ const makeStyles = (c: ThemeColors, scheme: ColorScheme) =>
   heading: {
     fontFamily: fonts.display,
     fontSize: 30,
-    color: c.accentText,
+    color: c.heading,
   },
   statusRow: {
     flexGrow: 1, // stretch from the heading to the right edge

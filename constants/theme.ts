@@ -13,7 +13,9 @@ const darkColors = {
   primary: '#FBF4E9',
   onPrimary: '#362304',
   /** The "Cultivate." letters (the dot uses accentText) */
-  logo: '#E6D5BE',
+  logo: '#CDB79B',
+  /** Books / Movies / Series heading */
+  heading: '#E6D5BE',
   /** Latte beige: cards */
   surface: '#E6D5BE',
   /** Text on beige cards (never creme) */
@@ -27,7 +29,7 @@ const darkColors = {
   /** Text on sienna (always bold) */
   onAccent: '#362304',
   /** Sienna for text and icons on the background (shade chosen so it stays readable):
-   *  the selected Books / Movies / Series word, the heading and the logo dot */
+   *  the selected Books / Movies / Series word, the selected status and the logo dot */
   accentText: '#D9781F',
   /** Thin divider lines on the background */
   divider: '#6B4532',
@@ -49,7 +51,8 @@ const lightColors: ThemeColors = {
   textSecondary: '#6B4532',
   primary: '#2E1A06',
   onPrimary: '#FBF4E9',
-  logo: '#2E1A06',
+  logo: '#4A2E1C',
+  heading: '#6B4532',
   surface: '#E6D5BE',
   onSurface: '#362304',
   muted: '#6B4532',
