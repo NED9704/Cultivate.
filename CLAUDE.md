@@ -55,8 +55,8 @@ Warm and cosy, like a cafe-bookshop that smells of coffee and hot chocolate. Kee
 | background | #261505 | #FBF4E9 | App background |
 | text | #FBF4E9 | #2E1A06 | Main text |
 | textSecondary | #E6D5BE | #6B4532 | Secondary text on the background |
-| logo | #CDB79B | #4A2E1C | "Cultivate." letters (the dot is accentText) |
-| heading | #E6D5BE | #6B4532 | Books / Movies / Series heading |
+| logo | #E6D5BE | #4A2E1C | "Cultivate." letters (the dot is accentText) |
+| heading | #E6D5BE | #4A2E1C | Books / Movies / Series heading (same as the logo letters in each mode) |
 | surface | #E6D5BE | #E6D5BE | Latte beige cards. Text on it is #362304, never creme. |
 | muted | #6B4532 | #6B4532 | Secondary text, icons and borders **on beige cards only** |
 | accent | #B85E00 | #B85E00 | Sienna: "+" button, stars, filled buttons. Text on it is #362304, bold. |

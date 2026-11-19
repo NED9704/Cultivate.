@@ -13,7 +13,7 @@ const darkColors = {
   primary: '#FBF4E9',
   onPrimary: '#362304',
   /** The "Cultivate." letters (the dot uses accentText) */
-  logo: '#CDB79B',
+  logo: '#E6D5BE',
   /** Books / Movies / Series heading */
   heading: '#E6D5BE',
   /** Latte beige: cards */
@@ -52,7 +52,7 @@ const lightColors: ThemeColors = {
   primary: '#2E1A06',
   onPrimary: '#FBF4E9',
   logo: '#4A2E1C',
-  heading: '#6B4532',
+  heading: '#4A2E1C',
   surface: '#E6D5BE',
   onSurface: '#362304',
   muted: '#6B4532',

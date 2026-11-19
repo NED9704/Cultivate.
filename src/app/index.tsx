@@ -5,14 +5,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
-  cardShadow,
   fonts,
   itemStatuses,
   mediaTypes,
   minTapSize,
-  radius,
   spacing,
-  type ColorScheme,
   type ItemStatus,
   type MediaType,
   type ThemeColors,
@@ -133,8 +130,8 @@ export default function LibraryScreen() {
           </View>
         </View>
 
-        {/* Empty state placeholder */}
-        <View style={styles.emptyCard}>
+        {/* Empty state message */}
+        <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Nothing here yet</Text>
           <Text style={styles.emptyText}>{emptyMessages[activeType][activeStatus]}</Text>
         </View>
@@ -143,7 +140,7 @@ export default function LibraryScreen() {
   );
 }
 
-const makeStyles = (c: ThemeColors, scheme: ColorScheme) =>
+const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
   screen: {
     flex: 1,
@@ -257,23 +254,20 @@ const makeStyles = (c: ThemeColors, scheme: ColorScheme) =>
     fontFamily: fonts.bodyBold,
     color: c.accentText,
   },
-  emptyCard: {
-    backgroundColor: c.surface,
-    borderRadius: radius.lg,
+  empty: {
     padding: spacing.lg,
     alignItems: 'center',
-    ...cardShadow(scheme, c),
   },
   emptyTitle: {
     fontSize: 18,
     fontFamily: fonts.bodyBold,
-    color: c.onSurface,
+    color: c.text,
     marginBottom: spacing.sm,
   },
   emptyText: {
     fontFamily: fonts.body,
     fontSize: 16,
-    color: c.muted,
+    color: c.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },
