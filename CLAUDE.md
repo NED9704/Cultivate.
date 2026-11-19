@@ -46,24 +46,30 @@ Phase 2 adds profiles with a username, a public link `/u/{username}`, friend req
 
 ## Design
 
-Dark, warm and cosy, like a cafe-bookshop that smells of coffee and hot chocolate. Keep all colours in one theme file (`constants/theme.ts`).
+Warm and cosy, like a cafe-bookshop that smells of coffee and hot chocolate. Keep all colours in one theme file (`constants/theme.ts`).
 
-| Token | Hex | Use |
-|---|---|---|
-| background | #362304 | Chocolate brown: app background |
-| text / primary | #FBF4E9 | Creme: main text, headings, primary buttons (button text #362304) |
-| surface | #E6D5BE | Latte beige: cards, inputs, tab bar. Text on it is #362304, never creme. |
-| muted | #6B4532 | Milk chocolate: secondary text, icons and borders **on beige cards only**. On the dark background, use #E6D5BE for secondary text. |
-| accent | #B85E00 | Sienna: "+" button, active tab, stars, highlights. Text on it is #362304, bold. |
-| book | #B85E00 | Books accent |
-| movie | #A87452 | Movies accent (light mocha) |
-| series | #C9A06A | Series accent (caramel) |
+**Dark and light mode.** The app follows the iPhone's Light/Dark setting, and the user can switch manually (sun/moon button; remembered on the device). Light mode swaps the chocolate background and the creme text/logo. Screens never import colours directly: they use `useTheme()` / `useThemedStyles()` from `src/lib/theme.tsx`, and every new colour needs a value in **both** palettes.
+
+| Token | Dark | Light | Use |
+|---|---|---|---|
+| background | #261505 | #FBF4E9 | App background |
+| text | #FBF4E9 | #2E1A06 | Main text |
+| textSecondary | #E6D5BE | #6B4532 | Secondary text on the background |
+| logo | #E6D5BE | #2E1A06 | "Cultivate." letters (the dot is accentText) |
+| surface | #E6D5BE | #E6D5BE | Latte beige cards. Text on it is #362304, never creme. |
+| muted | #6B4532 | #6B4532 | Secondary text, icons and borders **on beige cards only** |
+| accent | #B85E00 | #B85E00 | Sienna: "+" button, stars, filled buttons. Text on it is #362304, bold. |
+| accentText | #D9781F | #B85E00 | Sienna for text on the background: selected tab, category heading, logo dot. Light mode uses the deeper brand sienna so it stays readable on creme (4.1:1). |
+| divider | #6B4532 | #D9C4A8 | Thin lines on the background |
+| book / movie / series | #B85E00 / #A87452 / #C9A06A | same | Media-type accents |
 
 Media-type colours are always paired with an icon and a label, never colour alone.
 
+**Library tabs:** Books / Movies / Series sit in a row with a Feather line icon each and one thin divider line underneath. The selected one is accentText and bold (no extra underline).
+
 **Fonts**
 - Logo and the three category headings (Books, Movies, Series): a chunky, rounded display font. Use **Bagel Fat One** (`@expo-google-fonts/bagel-fat-one`) until I add a licensed "Extra Chunk Please" font file to `assets/fonts/`. Don't add that file unless I confirm I have an app licence.
-- Everything else: **Helvetica Neue**. It's built into iOS, so use `fontFamily: 'Helvetica Neue'` with the system font as the fallback on Android. Never bundle Helvetica font files.
+- Everything else: **DM Sans** (`@expo-google-fonts/dm-sans`), loaded in the root layout from per-weight imports so only the weights in use are bundled. Each weight is its own font, so use `fonts.body`, `fonts.bodyMedium`, `fonts.bodySemiBold` or `fonts.bodyBold` from the theme instead of `fontWeight`.
 
 Style: soft warm shadows, rounded cards, large tap targets (44 pt minimum), portrait only, iPad layout must also work (Apple often reviews on iPad). Every text must stay readable against its background. Clear empty states, e.g. "Your shelf is empty — add the last thing you read or watched".
 
