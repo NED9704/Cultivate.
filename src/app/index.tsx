@@ -210,7 +210,12 @@ function ItemCard({ item }: { item: LibraryItem }) {
   const styles = useThemedStyles(makeStyles);
   const details = [item.creator, item.year].filter(Boolean).join(' · ');
   return (
-    <View style={styles.card}>
+    <Pressable
+      onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}
+      accessibilityRole="button"
+      accessibilityHint="Opens details and notes"
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
       <Cover title={item.title} type={item.media_type} imageUrl={item.cover_image_url} />
       <View style={styles.cardText}>
         <Text style={styles.cardTitle} numberOfLines={2}>
@@ -227,7 +232,14 @@ function ItemCard({ item }: { item: LibraryItem }) {
           </View>
         ) : null}
       </View>
-    </View>
+      <Feather
+        name="chevron-right"
+        size={18}
+        color={colors.muted}
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+      />
+    </Pressable>
   );
 }
 

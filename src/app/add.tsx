@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -27,7 +27,7 @@ import {
 } from '../../constants/theme';
 import { StarRating } from '../components/StarRating';
 import { useAuth } from '../lib/auth';
-import { addItem } from '../lib/items';
+import { addItem, fetchItem, statusChangeFields, updateItem } from '../lib/items';
 import { useTheme, useThemedStyles } from '../lib/theme';
 
 const isMediaType = (v: unknown): v is MediaType => v === 'book' || v === 'movie' || v === 'series';
@@ -40,8 +40,10 @@ export default function AddItemScreen() {
   const { session } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  // The Library passes the tab and filter you were on, so they're preselected.
-  const params = useLocalSearchParams<{ type?: string; status?: string }>();
+  // Adding: the Library passes the tab and filter you were on, so they're preselected.
+  // Editing: the detail screen passes the item's id, and the form fills itself in.
+  const params = useLocalSearchParams<{ type?: string; status?: string; id?: string }>();
+  const editId = typeof params.id === 'string' && params.id ? params.id : undefined;
 
   const [type, setType] = useState<MediaType>(isMediaType(params.type) ? params.type : 'book');
   const [status, setStatus] = useState<ItemStatus>(isStatus(params.status) ? params.status : 'want_to');
@@ -51,9 +53,33 @@ export default function AddItemScreen() {
   const [rating, setRating] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingItem, setLoadingItem] = useState(!!editId);
+  const originalStatus = useRef<ItemStatus | null>(null);
 
   const creatorRef = useRef<ComponentRef<typeof TextInput>>(null);
   const yearRef = useRef<ComponentRef<typeof TextInput>>(null);
+
+  // Editing: fill the form with the item's current details.
+  useEffect(() => {
+    if (!editId) return;
+    let cancelled = false;
+    fetchItem(editId)
+      .then((item) => {
+        if (cancelled) return;
+        setType(item.media_type);
+        setStatus(item.status);
+        originalStatus.current = item.status;
+        setTitle(item.title);
+        setCreator(item.creator ?? '');
+        setYear(item.year ? String(item.year) : '');
+        setRating(item.rating);
+      })
+      .catch(() => !cancelled && setError('Couldn’t load this item. Go back and try again.'))
+      .finally(() => !cancelled && setLoadingItem(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [editId]);
 
   if (!session) return <Redirect href="/sign-in" />;
 
@@ -78,7 +104,19 @@ export default function AddItemScreen() {
 
     setSaving(true);
     try {
-      await addItem({ title, media_type: type, status, creator, year: yearNumber, rating });
+      if (editId) {
+        await updateItem(editId, {
+          // Status-related fields (finished date, clearing the rating) only when it changed.
+          ...(status !== originalStatus.current ? statusChangeFields(status) : {}),
+          title,
+          media_type: type,
+          creator,
+          year: yearNumber,
+          rating: status === 'finished' ? rating : null,
+        });
+      } else {
+        await addItem({ title, media_type: type, status, creator, year: yearNumber, rating });
+      }
       router.back();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -102,8 +140,10 @@ export default function AddItemScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.heading} accessibilityRole="header">
-            Add to your shelf
+            {editId ? 'Edit details' : 'Add to your shelf'}
           </Text>
+
+          {loadingItem && <ActivityIndicator color={colors.textSecondary} style={styles.loader} />}
 
           {/* 1. Type */}
           <Text style={styles.label}>Type</Text>
@@ -136,7 +176,7 @@ export default function AddItemScreen() {
           <TextInput
             value={title}
             onChangeText={setTitle}
-            autoFocus
+            autoFocus={!editId}
             placeholder={type === 'book' ? 'Norwegian Wood' : type === 'movie' ? 'Spirited Away' : 'Fleabag'}
             placeholderTextColor={colors.muted}
             accessibilityLabel="Title"
@@ -294,6 +334,7 @@ const makeStyles = (c: ThemeColors) =>
       fontSize: 17,
     },
     yearInput: { width: 120 },
+    loader: { marginVertical: spacing.md },
     error: {
       fontFamily: fonts.bodySemiBold,
       fontSize: 15,

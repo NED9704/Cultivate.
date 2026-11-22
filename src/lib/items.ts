@@ -45,8 +45,61 @@ export async function addItem(item: NewItem): Promise<void> {
     creator: item.creator?.trim() || null,
     year: item.year ?? null,
     rating: isFinished ? (item.rating ?? null) : null,
-    finished_date: isFinished ? new Date().toISOString().slice(0, 10) : null,
+    finished_date: isFinished ? today() : null,
   });
+  if (error) throw error;
+}
+
+/** One item with everything the detail screen needs, including the private notes. */
+export type ItemDetail = LibraryItem & {
+  notes: string | null;
+  finished_date: string | null;
+};
+
+export async function fetchItem(id: string): Promise<ItemDetail> {
+  const { data, error } = await supabase
+    .from('library_items')
+    .select(`${LIST_COLUMNS}, notes, finished_date`)
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data as ItemDetail;
+}
+
+export type ItemPatch = Partial<{
+  title: string;
+  media_type: MediaType;
+  status: ItemStatus;
+  creator: string | null;
+  year: number | null;
+  rating: number | null;
+  notes: string | null;
+  finished_date: string | null;
+}>;
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * The extra fields that go with a status change: moving to Done stamps today's
+ * date; moving away from Done clears the rating and date (ratings are only for
+ * finished items).
+ */
+export function statusChangeFields(status: ItemStatus): ItemPatch {
+  return status === 'finished'
+    ? { status, finished_date: today() }
+    : { status, rating: null, finished_date: null };
+}
+
+export async function updateItem(id: string, patch: ItemPatch): Promise<void> {
+  const clean: ItemPatch = { ...patch };
+  if (clean.title !== undefined) clean.title = clean.title.trim();
+  if (clean.creator !== undefined) clean.creator = clean.creator?.trim() || null;
+  const { error } = await supabase.from('library_items').update(clean).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteItem(id: string): Promise<void> {
+  const { error } = await supabase.from('library_items').delete().eq('id', id);
   if (error) throw error;
 }
 
