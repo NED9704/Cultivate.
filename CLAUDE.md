@@ -48,7 +48,7 @@ Phase 2 adds profiles with a username, a public link `/u/{username}`, friend req
 
 Warm and cosy, like a cafe-bookshop that smells of coffee and hot chocolate. Keep all colours in one theme file (`constants/theme.ts`).
 
-**Dark and light mode.** The app follows the iPhone's Light/Dark setting, and the user can switch manually (sun/moon button; remembered on the device). Light mode swaps the chocolate background and the creme text/logo. Screens never import colours directly: they use `useTheme()` / `useThemedStyles()` from `src/lib/theme.tsx`, and every new colour needs a value in **both** palettes.
+**Dark and light mode.** The user picks Light or Dark manually in Settings (remembered on the device; starts in Dark). The iPhone's own setting is not followed, and system pop-ups and the keyboard follow the chosen mode. Light mode swaps the chocolate background and the creme text/logo. Screens never import colours directly: they use `useTheme()` / `useThemedStyles()` from `src/lib/theme.tsx`, and every new colour needs a value in **both** palettes.
 
 | Token | Dark | Light | Use |
 |---|---|---|---|

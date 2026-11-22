@@ -22,7 +22,6 @@ import { Logo } from '../components/Logo';
 import { StarRating } from '../components/StarRating';
 import { useAuth } from '../lib/auth';
 import { fetchItems, type LibraryItem } from '../lib/items';
-import { supabase } from '../lib/supabase';
 import { useTheme, useThemedStyles } from '../lib/theme';
 
 const emptyMessages: Record<MediaType, Record<ItemStatus, string>> = {
@@ -45,7 +44,7 @@ const emptyMessages: Record<MediaType, Record<ItemStatus, string>> = {
 
 export default function LibraryScreen() {
   const { session } = useAuth();
-  const { colors, scheme, setPreference } = useTheme();
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [activeType, setActiveType] = useState<MediaType>('book');
   // Each tab remembers its own status filter.
@@ -87,24 +86,14 @@ export default function LibraryScreen() {
       <View style={styles.content}>
         <View style={styles.topRow}>
           <Logo size={40} />
-          {/* Temporary — these move to the Settings screen later */}
-          <View style={styles.topActions}>
-            <Pressable
-              onPress={() => setPreference(scheme === 'dark' ? 'light' : 'dark')}
-              accessibilityRole="button"
-              accessibilityLabel={scheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              style={styles.iconButton}
-            >
-              <Feather name={scheme === 'dark' ? 'sun' : 'moon'} size={20} color={colors.textSecondary} />
-            </Pressable>
-            <Pressable
-              onPress={() => supabase.auth.signOut()}
-              accessibilityRole="button"
-              style={styles.signOut}
-            >
-              <Text style={styles.signOutText}>Sign out</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            style={styles.settingsButton}
+          >
+            <Feather name="settings" size={22} color={colors.textSecondary} />
+          </Pressable>
         </View>
 
         {/* Books / Movies / Series tabs */}
@@ -263,34 +252,19 @@ const makeStyles = (c: ThemeColors, scheme: ColorScheme) =>
     marginTop: spacing.md,
     marginBottom: spacing.lg,
   },
-  topActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconButton: {
+  settingsButton: {
     minHeight: minTapSize,
     minWidth: minTapSize,
-    alignItems: 'center',
+    alignItems: 'flex-end', // icon's right edge lines up with "Done" and the tab line
     justifyContent: 'center',
-  },
-  signOut: {
-    minHeight: minTapSize,
-    minWidth: minTapSize,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-  },
-  signOutText: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: c.textSecondary,
-    textDecorationLine: 'underline',
+    paddingRight: spacing.sm,
   },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: c.divider,
     // Line runs from the logo's "C" (Bagel Fat One leaves ~1pt before it at 40pt)
-    // to the end of the "Sign out" text (which has spacing.sm padding).
+    // to the right edge of the settings icon (which has spacing.sm padding).
     marginLeft: 1,
     marginRight: spacing.sm,
   },
@@ -335,7 +309,7 @@ const makeStyles = (c: ThemeColors, scheme: ColorScheme) =>
     minWidth: 220, // below this it drops under the heading instead of squashing
     flexDirection: 'row',
     justifyContent: 'space-between',
-    // "Done" ends where the "Sign out" text ends (it has spacing.sm padding).
+    // "Done" ends where the settings icon ends (it has spacing.sm padding).
     marginRight: spacing.sm,
   },
   status: {

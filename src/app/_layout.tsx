@@ -85,6 +85,7 @@ function RootNavigator() {
       <Stack.Screen name="sign-in" options={{ animation: 'fade' }} />
       <Stack.Screen name="add" options={{ presentation: 'modal' }} />
       <Stack.Screen name="item/[id]" />
+      <Stack.Screen name="settings" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="terms" />
     </Stack>

@@ -1,13 +1,15 @@
 import 'expo-sqlite/localStorage/install';
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Appearance } from 'react-native';
 
 import { palettes, type ColorScheme, type ThemeColors } from '../../constants/theme';
 
-/** "system" follows the iPhone's own Light/Dark setting. */
-export type ThemePreference = 'system' | ColorScheme;
+/** Picked manually in Settings; the iPhone's own setting is not used. */
+export type ThemePreference = ColorScheme;
 
 const STORAGE_KEY = 'cultivate.themePreference';
+/** The look before anyone picks: the original chocolate dark mode. */
+const DEFAULT_SCHEME: ColorScheme = 'dark';
 
 type ThemeState = {
   scheme: ColorScheme;
@@ -21,15 +23,14 @@ const ThemeContext = createContext<ThemeState | null>(null);
 function readSavedPreference(): ThemePreference {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+    if (saved === 'light' || saved === 'dark') return saved;
   } catch {
-    // Storage unavailable: fall back to the system setting.
+    // Storage unavailable: use the default.
   }
-  return 'system';
+  return DEFAULT_SCHEME;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const systemScheme = useColorScheme();
   const [preference, setPreferenceState] = useState<ThemePreference>(readSavedPreference);
 
   const setPreference = useCallback((p: ThemePreference) => {
@@ -41,13 +42,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Dark is the default look when the system gives no answer.
-  const scheme: ColorScheme =
-    preference === 'system' ? (systemScheme === 'light' ? 'light' : 'dark') : preference;
+  // Make the system parts (pop-up alerts, keyboard) match the chosen mode too.
+  useEffect(() => {
+    Appearance.setColorScheme(preference);
+  }, [preference]);
 
   const value = useMemo(
-    () => ({ scheme, colors: palettes[scheme], preference, setPreference }),
-    [scheme, preference, setPreference],
+    () => ({ scheme: preference, colors: palettes[preference], preference, setPreference }),
+    [preference, setPreference],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
