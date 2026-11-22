@@ -215,7 +215,7 @@ const makeStyles = (c: ThemeColors) =>
   headingRow: {
     flexDirection: 'row',
     flexWrap: 'wrap', // on very narrow phones the words drop below the heading
-    alignItems: 'flex-end',
+    alignItems: 'baseline', // the words rest on the same line as the heading letters
     justifyContent: 'space-between',
     columnGap: spacing.md,
     rowGap: spacing.sm,
@@ -232,13 +232,8 @@ const makeStyles = (c: ThemeColors) =>
     minWidth: 220, // below this it drops under the heading instead of squashing
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: c.divider,
-    // "Done" and the line end where the "Sign out" text ends (it has spacing.sm padding).
+    // "Done" ends where the "Sign out" text ends (it has spacing.sm padding).
     marginRight: spacing.sm,
-    // Lift the line to the bottom of the heading letters: Bagel Fat One leaves
-    // ~8.6pt below its letters at 30pt (descender 288/1000 em).
-    marginBottom: 9,
   },
   status: {
     minHeight: minTapSize,
