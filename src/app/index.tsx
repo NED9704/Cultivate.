@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -57,6 +57,7 @@ export default function LibraryScreen() {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -79,7 +80,13 @@ export default function LibraryScreen() {
   if (!session) return <Redirect href="/sign-in" />;
   const active = mediaTypes.find((m) => m.key === activeType)!;
   const activeStatus = statusByType[activeType];
-  const shown = items.filter((i) => i.media_type === activeType && i.status === activeStatus);
+  const q = query.trim().toLowerCase();
+  const shown = items.filter(
+    (i) =>
+      i.media_type === activeType &&
+      i.status === activeStatus &&
+      (!q || i.title.toLowerCase().includes(q) || (i.creator ?? '').toLowerCase().includes(q)),
+  );
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
@@ -148,6 +155,39 @@ export default function LibraryScreen() {
           </View>
         </View>
 
+        {/* Search by title (or author / director / creator) */}
+        <View style={styles.search}>
+          <Feather
+            name="search"
+            size={17}
+            color={colors.textSecondary}
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+          />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={`Search ${active.label.toLowerCase()}`}
+            placeholderTextColor={colors.textSecondary}
+            accessibilityLabel={`Search ${active.label.toLowerCase()} by title`}
+            returnKeyType="search"
+            autoCorrect={false}
+            clearButtonMode="never"
+            style={styles.searchInput}
+          />
+          {query ? (
+            <Pressable
+              onPress={() => setQuery('')}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+              style={styles.clearButton}
+              hitSlop={6}
+            >
+              <Feather name="x" size={17} color={colors.textSecondary} />
+            </Pressable>
+          ) : null}
+        </View>
+
         {loading && items.length === 0 ? (
           <ActivityIndicator color={colors.textSecondary} style={styles.loader} />
         ) : loadError && items.length === 0 ? (
@@ -165,11 +205,20 @@ export default function LibraryScreen() {
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             ListEmptyComponent={
-              <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>Nothing here yet</Text>
-                <Text style={styles.emptyText}>{emptyMessages[activeType][activeStatus]}</Text>
-              </View>
+              q ? (
+                <View style={styles.empty}>
+                  <Text style={styles.emptyTitle}>No matches</Text>
+                  <Text style={styles.emptyText}>Nothing here matches “{query.trim()}”.</Text>
+                </View>
+              ) : (
+                <View style={styles.empty}>
+                  <Text style={styles.emptyTitle}>Nothing here yet</Text>
+                  <Text style={styles.emptyText}>{emptyMessages[activeType][activeStatus]}</Text>
+                </View>
+              )
             }
           />
         )}
@@ -325,6 +374,32 @@ const makeStyles = (c: ThemeColors, scheme: ColorScheme) =>
   statusLabelActive: {
     fontFamily: fonts.bodyBold,
     color: c.accentText,
+  },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: minTapSize,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs,
+    marginRight: spacing.sm, // ends with the settings icon, "Done" and the tab line
+    marginBottom: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: c.divider,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: minTapSize,
+    fontFamily: fonts.body,
+    fontSize: 16,
+    color: c.text,
+  },
+  clearButton: {
+    minWidth: minTapSize - 8,
+    minHeight: minTapSize - 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   empty: {
     padding: spacing.lg,
