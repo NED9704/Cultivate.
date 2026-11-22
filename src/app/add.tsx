@@ -3,6 +3,7 @@ import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -25,9 +26,18 @@ import {
   type MediaType,
   type ThemeColors,
 } from '../../constants/theme';
+import { Cover } from '../components/Cover';
 import { StarRating } from '../components/StarRating';
+import { TmdbCredit } from '../components/TmdbCredit';
 import { useAuth } from '../lib/auth';
 import { addItem, fetchItem, statusChangeFields, updateItem } from '../lib/items';
+import {
+  fetchTmdbCreator,
+  isTmdbConfigured,
+  searchTitles,
+  type LookupResult,
+  type LookupSource,
+} from '../lib/lookup';
 import { useTheme, useThemedStyles } from '../lib/theme';
 
 const isMediaType = (v: unknown): v is MediaType => v === 'book' || v === 'movie' || v === 'series';
@@ -35,6 +45,8 @@ const isStatus = (v: unknown): v is ItemStatus =>
   v === 'want_to' || v === 'in_progress' || v === 'finished';
 
 const MAX_YEAR = new Date().getFullYear() + 5;
+/** Wait this long after you stop typing before looking up books. */
+const LOOKUP_DELAY_MS = 450;
 
 export default function AddItemScreen() {
   const { session } = useAuth();
@@ -56,6 +68,60 @@ export default function AddItemScreen() {
   const [loadingItem, setLoadingItem] = useState(!!editId);
   const originalStatus = useRef<ItemStatus | null>(null);
 
+  // Title lookup: Open Library for books, TMDB for movies and series
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [source, setSource] = useState<LookupSource | null>(null);
+  const [suggestions, setSuggestions] = useState<LookupResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [findingCreator, setFindingCreator] = useState(false);
+  // Only look things up after you type in the title, not when it's filled in for you.
+  const [titleTyped, setTitleTyped] = useState(false);
+  const lookupAvailable = type === 'book' || isTmdbConfigured;
+
+  useEffect(() => {
+    const q = title.trim();
+    if (!lookupAvailable || !titleTyped || q.length < 3) {
+      setSuggestions([]);
+      setSearching(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        setSuggestions(await searchTitles(type, q, controller.signal));
+      } catch {
+        // Offline, cancelled or the service is down: just show no suggestions.
+        if (!controller.signal.aborted) setSuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) setSearching(false);
+      }
+    }, LOOKUP_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [title, type, titleTyped, lookupAvailable]);
+
+  async function pickResult(result: LookupResult) {
+    setTitle(result.title);
+    if (result.creator) setCreator(result.creator);
+    if (result.year) setYear(String(result.year));
+    setCoverUrl(result.coverUrl);
+    setSource(result.source);
+    setTitleTyped(false);
+    setSuggestions([]);
+    Keyboard.dismiss();
+
+    // Movies and series: the director / creator needs one more lookup.
+    if (result.source === 'tmdb' && result.tmdbId && type !== 'book') {
+      setFindingCreator(true);
+      const name = await fetchTmdbCreator(type, result.tmdbId);
+      setFindingCreator(false);
+      if (name) setCreator((current) => (current.trim() ? current : name));
+    }
+  }
+
   const creatorRef = useRef<ComponentRef<typeof TextInput>>(null);
   const yearRef = useRef<ComponentRef<typeof TextInput>>(null);
 
@@ -73,6 +139,8 @@ export default function AddItemScreen() {
         setCreator(item.creator ?? '');
         setYear(item.year ? String(item.year) : '');
         setRating(item.rating);
+        setCoverUrl(item.cover_image_url);
+        setSource(item.source);
       })
       .catch(() => !cancelled && setError('Couldn’t load this item. Go back and try again.'))
       .finally(() => !cancelled && setLoadingItem(false));
@@ -112,10 +180,22 @@ export default function AddItemScreen() {
           media_type: type,
           creator,
           year: yearNumber,
+          cover_image_url: coverUrl,
+          // Only when a lookup was used, so editing still works before migration 0004 runs.
+          ...(source ? { source } : {}),
           rating: status === 'finished' ? rating : null,
         });
       } else {
-        await addItem({ title, media_type: type, status, creator, year: yearNumber, rating });
+        await addItem({
+          title,
+          media_type: type,
+          status,
+          creator,
+          year: yearNumber,
+          rating,
+          cover_image_url: coverUrl,
+          source,
+        });
       }
       router.back();
     } catch (e) {
@@ -175,7 +255,10 @@ export default function AddItemScreen() {
           <Text style={styles.label}>Title</Text>
           <TextInput
             value={title}
-            onChangeText={setTitle}
+            onChangeText={(t) => {
+              setTitle(t);
+              setTitleTyped(true);
+            }}
             autoFocus={!editId}
             placeholder={type === 'book' ? 'Norwegian Wood' : type === 'movie' ? 'Spirited Away' : 'Fleabag'}
             placeholderTextColor={colors.muted}
@@ -187,9 +270,69 @@ export default function AddItemScreen() {
             style={styles.input}
           />
 
+          {/* Suggestions: Open Library for books, TMDB for movies and series */}
+          {searching && suggestions.length === 0 && (
+            <Text style={styles.hint}>Looking up {typeInfo.label.toLowerCase()}…</Text>
+          )}
+          {suggestions.length > 0 && (
+            <View style={styles.suggestions} accessibilityLabel={`Suggested ${typeInfo.label.toLowerCase()}`}>
+              {suggestions.map((r, i) => (
+                <Pressable
+                  key={r.key}
+                  onPress={() => pickResult(r)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${r.title}${r.creator ? ` by ${r.creator}` : ''}${
+                    r.year ? `, ${r.year}` : ''
+                  }`}
+                  style={({ pressed }) => [
+                    styles.suggestion,
+                    i > 0 && styles.suggestionDivider,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Cover title={r.title} type={type} imageUrl={r.coverUrl} width={34} />
+                  <View style={styles.suggestionText}>
+                    <Text style={styles.suggestionTitle} numberOfLines={2}>
+                      {r.title}
+                    </Text>
+                    {(r.creator || r.year) && (
+                      <Text style={styles.suggestionDetails} numberOfLines={1}>
+                        {[r.creator, r.year].filter(Boolean).join(' · ')}
+                      </Text>
+                    )}
+                  </View>
+                </Pressable>
+              ))}
+              {suggestions[0].source === 'tmdb' ? (
+                <TmdbCredit style={styles.suggestionsCredit} />
+              ) : (
+                <Text style={styles.credit}>Book info from Open Library</Text>
+              )}
+            </View>
+          )}
+
+          {/* The chosen cover, with a way to remove it */}
+          {coverUrl && (
+            <View style={styles.coverRow}>
+              <Cover title={title || '?'} type={type} imageUrl={coverUrl} width={40} />
+              <Text style={styles.hint}>
+                {coverUrl.startsWith('https://image.tmdb.org') ? 'Poster from TMDB' : 'Cover from Open Library'}
+              </Text>
+              <Pressable
+                onPress={() => setCoverUrl(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Remove cover"
+                style={styles.removeCover}
+              >
+                <Text style={styles.removeCoverText}>Remove</Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* 3. Optional details */}
           <Text style={styles.label}>
             {typeInfo.creatorLabel} <Text style={styles.optional}>(optional)</Text>
+            {findingCreator ? <Text style={styles.optional}> · looking it up…</Text> : null}
           </Text>
           <TextInput
             ref={creatorRef}
@@ -334,6 +477,46 @@ const makeStyles = (c: ThemeColors) =>
       fontSize: 17,
     },
     yearInput: { width: 120 },
+    hint: { fontFamily: fonts.body, fontSize: 13, color: c.textSecondary, marginTop: spacing.sm },
+    suggestions: {
+      marginTop: spacing.sm,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: c.divider,
+      paddingHorizontal: spacing.sm + 2,
+    },
+    suggestion: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 2,
+      minHeight: minTapSize + 12,
+      paddingVertical: spacing.sm,
+    },
+    suggestionDivider: { borderTopWidth: 1, borderTopColor: c.divider },
+    suggestionText: { flex: 1 },
+    suggestionTitle: { fontFamily: fonts.bodyBold, fontSize: 15, color: c.text, lineHeight: 20 },
+    suggestionDetails: { fontFamily: fonts.body, fontSize: 13, color: c.textSecondary, marginTop: 2 },
+    suggestionsCredit: { paddingTop: spacing.xs, paddingBottom: spacing.sm + 2 },
+    credit: {
+      fontFamily: fonts.body,
+      fontSize: 12,
+      color: c.textSecondary,
+      textAlign: 'right',
+      paddingBottom: spacing.sm,
+    },
+    coverRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm + 2,
+      marginTop: spacing.sm,
+    },
+    removeCover: { minHeight: minTapSize, justifyContent: 'center', paddingHorizontal: spacing.sm },
+    removeCoverText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 14,
+      color: c.accentText,
+      textDecorationLine: 'underline',
+    },
     loader: { marginVertical: spacing.md },
     error: {
       fontFamily: fonts.bodySemiBold,

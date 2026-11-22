@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { fonts, minTapSize, radius, spacing, type ThemeColors } from '../../constants/theme';
+import { TmdbCredit } from '../components/TmdbCredit';
 import { deleteMyAccount, fetchMyProfile, updateDisplayName } from '../lib/account';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -192,6 +193,11 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
 
+          {/* Credits for looked-up details */}
+          <Text style={styles.label}>Credits</Text>
+          <TmdbCredit logoHeight={12} />
+          <Text style={styles.hint}>Book details and covers from Open Library.</Text>
+
           {/* Sign out */}
           <Pressable
             onPress={() => supabase.auth.signOut()}
@@ -209,7 +215,7 @@ export default function SettingsScreen() {
             style={[styles.outlineButton, styles.deleteButton]}
           >
             {deleting ? (
-              <ActivityIndicator color={colors.errorText} />
+              <ActivityIndicator color={colors.divider} />
             ) : (
               <Text style={styles.deleteText}>Delete my account</Text>
             )}
@@ -319,6 +325,6 @@ const makeStyles = (c: ThemeColors) =>
     },
     signOutButton: { marginTop: spacing.xl, borderColor: c.divider },
     outlineButtonText: { fontFamily: fonts.bodyBold, fontSize: 16, color: c.text },
-    deleteButton: { marginTop: spacing.lg, borderColor: c.errorText },
-    deleteText: { fontFamily: fonts.bodyBold, fontSize: 16, color: c.errorText },
+    deleteButton: { marginTop: spacing.lg, borderColor: c.divider },
+    deleteText: { fontFamily: fonts.bodyBold, fontSize: 16, color: c.divider },
   });

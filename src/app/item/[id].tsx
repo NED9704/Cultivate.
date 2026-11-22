@@ -27,6 +27,7 @@ import {
 } from '../../../constants/theme';
 import { Cover } from '../../components/Cover';
 import { StarRating } from '../../components/StarRating';
+import { TmdbCredit } from '../../components/TmdbCredit';
 import { useAuth } from '../../lib/auth';
 import {
   deleteItem,
@@ -297,6 +298,9 @@ export default function ItemDetailScreen() {
               <Text style={styles.privateText}>Only you can see your notes.</Text>
             </View>
 
+            {/* Credit for details looked up from TMDB (required by TMDB) */}
+            {item.source === 'tmdb' && <TmdbCredit style={styles.credit} />}
+
             {/* Delete */}
             <Pressable
               onPress={confirmDelete}
@@ -305,7 +309,7 @@ export default function ItemDetailScreen() {
               style={styles.deleteButton}
             >
               {deleting ? (
-                <ActivityIndicator color={colors.errorText} />
+                <ActivityIndicator color={colors.divider} />
               ) : (
                 <Text style={styles.deleteText}>Delete from my shelf</Text>
               )}
@@ -395,6 +399,7 @@ const makeStyles = (c: ThemeColors) =>
       fontSize: 16,
       lineHeight: 23,
     },
+    credit: { marginTop: spacing.lg },
     privateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2, marginTop: spacing.sm },
     privateText: { fontFamily: fonts.body, fontSize: 13, color: c.textSecondary },
     deleteButton: {
@@ -404,7 +409,7 @@ const makeStyles = (c: ThemeColors) =>
       justifyContent: 'center',
       borderRadius: radius.pill,
       borderWidth: 1,
-      borderColor: c.errorText,
+      borderColor: c.divider,
     },
-    deleteText: { fontFamily: fonts.bodyBold, fontSize: 16, color: c.errorText },
+    deleteText: { fontFamily: fonts.bodyBold, fontSize: 16, color: c.divider },
   });

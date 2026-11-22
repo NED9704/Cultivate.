@@ -23,6 +23,7 @@ The owner is a **beginner with no coding experience**, working 5–10 hours a we
 - Testing on device with **Expo Go**; later **EAS Build** and **EAS Submit** for TestFlight and the App Store (no Mac build tools needed)
 - Later, for in-app purchases: **RevenueCat** (`react-native-purchases`). This needs a development build rather than Expo Go.
 - Book lookup: Open Library search API (free, no key). Movies and series: TMDB, once I've checked its terms. It requires attribution.
+- **TMDB attribution (required):** wherever movie or series info from TMDB is shown, including the lookup suggestions in the add form and items added through TMDB, plus an About/credits spot in Settings, show the TMDB logo and exactly this notice: "This application uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB."
 
 ## Data model (Supabase)
 

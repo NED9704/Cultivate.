@@ -21,6 +21,9 @@ export type NewItem = {
   creator?: string | null;
   year?: number | null;
   rating?: number | null;
+  cover_image_url?: string | null;
+  /** Where the details came from, if looked up ('tmdb' items must show the TMDB credit). */
+  source?: 'tmdb' | 'openlibrary' | null;
 };
 
 // Notes are deliberately not loaded for the list.
@@ -44,6 +47,9 @@ export async function addItem(item: NewItem): Promise<void> {
     status: item.status,
     creator: item.creator?.trim() || null,
     year: item.year ?? null,
+    cover_image_url: item.cover_image_url ?? null,
+    // Only sent when looked up, so typing by hand still works before migration 0004 runs.
+    ...(item.source ? { source: item.source } : {}),
     rating: isFinished ? (item.rating ?? null) : null,
     finished_date: isFinished ? today() : null,
   });
@@ -54,12 +60,13 @@ export async function addItem(item: NewItem): Promise<void> {
 export type ItemDetail = LibraryItem & {
   notes: string | null;
   finished_date: string | null;
+  source: 'tmdb' | 'openlibrary' | null;
 };
 
 export async function fetchItem(id: string): Promise<ItemDetail> {
   const { data, error } = await supabase
     .from('library_items')
-    .select(`${LIST_COLUMNS}, notes, finished_date`)
+    .select(`${LIST_COLUMNS}, notes, finished_date, source`)
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -75,6 +82,8 @@ export type ItemPatch = Partial<{
   rating: number | null;
   notes: string | null;
   finished_date: string | null;
+  cover_image_url: string | null;
+  source: 'tmdb' | 'openlibrary' | null;
 }>;
 
 const today = () => new Date().toISOString().slice(0, 10);

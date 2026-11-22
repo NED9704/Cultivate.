@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { coverColors, fonts, mediaTypes, type MediaType } from '../../constants/theme';
@@ -12,14 +13,26 @@ type Props = {
   width?: number;
 };
 
-/** Cover picture, or a coloured placeholder with initials and the type's icon. */
+/** Cover picture, or a coloured placeholder with initials and the type's icon
+ *  (also used if the picture can't be loaded). */
 export function Cover({ title, type, imageUrl, width = 52 }: Props) {
   const { colors } = useTheme();
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [imageUrl]);
+
   const height = Math.round(width * 1.45);
   const box = { width, height, borderRadius: 8 };
 
-  if (imageUrl) {
-    return <Image source={{ uri: imageUrl }} style={box} accessibilityIgnoresInvertColors />;
+  if (imageUrl && !failed) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={[box, { backgroundColor: colors.divider }]}
+        resizeMode="cover"
+        onError={() => setFailed(true)}
+        accessibilityIgnoresInvertColors
+      />
+    );
   }
 
   const { bg, text } = coverColors(type, colors);
