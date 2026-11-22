@@ -1,12 +1,14 @@
 // Title lookup while adding an item:
 // - Books: Open Library (free, no key) — https://openlibrary.org/developers/api
+//   with Google Books as a backup when Open Library can't be reached (some
+//   networks block it) — https://developers.google.com/books
 // - Movies and series: TMDB (free key in .env) — https://developer.themoviedb.org
-// If a service can't be reached, lookups return nothing and the user types the
+// If no service can be reached, lookups return nothing and the user types the
 // details by hand.
 
 import type { MediaType } from '../../constants/theme';
 
-export type LookupSource = 'openlibrary' | 'tmdb';
+export type LookupSource = 'openlibrary' | 'googlebooks' | 'tmdb';
 
 export type LookupResult = {
   key: string;
@@ -40,7 +42,30 @@ export function bookCoverUrl(coverId: number, size: 'S' | 'M' | 'L' = 'M'): stri
   return `${OL_COVERS_URL}/${coverId}-${size}.jpg`;
 }
 
+/** Give Open Library this long before trying the backup. */
+const OL_TIMEOUT_MS = 3000;
+
+/** Books: Open Library first, Google Books if Open Library fails or is too slow. */
 async function searchBooks(title: string, signal?: AbortSignal, limit = 5): Promise<LookupResult[]> {
+  // Our own controller, so a slow Open Library can be cut off without
+  // cancelling the whole search.
+  const olController = new AbortController();
+  const onOuterAbort = () => olController.abort();
+  signal?.addEventListener('abort', onOuterAbort);
+  const timer = setTimeout(() => olController.abort(), OL_TIMEOUT_MS);
+  try {
+    return await searchOpenLibrary(title, olController.signal, limit);
+  } catch (e) {
+    if (signal?.aborted) throw e; // the user typed something new: stop here
+    if (!isGoogleBooksConfigured) throw e;
+    return searchGoogleBooks(title, signal, limit);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onOuterAbort);
+  }
+}
+
+async function searchOpenLibrary(title: string, signal: AbortSignal, limit: number): Promise<LookupResult[]> {
   const params = new URLSearchParams({
     title: title.trim(),
     fields: 'key,title,author_name,first_publish_year,cover_i',
@@ -62,6 +87,54 @@ async function searchBooks(title: string, signal?: AbortSignal, limit = 5): Prom
       year: typeof d.first_publish_year === 'number' ? d.first_publish_year : null,
       coverUrl: typeof d.cover_i === 'number' ? bookCoverUrl(d.cover_i, 'M') : null,
     }));
+}
+
+// ---------- Google Books (backup for books) ----------
+
+const GB_SEARCH_URL = 'https://www.googleapis.com/books/v1/volumes';
+// Free key restricted to the Books API, kept in .env.
+const GB_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY ?? '';
+export const isGoogleBooksConfigured = GB_KEY.length > 20;
+
+type GbVolume = {
+  id?: string;
+  volumeInfo?: {
+    title?: string;
+    authors?: string[];
+    publishedDate?: string;
+    imageLinks?: { thumbnail?: string; smallThumbnail?: string };
+  };
+};
+
+async function searchGoogleBooks(title: string, signal: AbortSignal | undefined, limit: number) {
+  const params = new URLSearchParams({
+    q: `intitle:${title.trim()}`,
+    maxResults: String(limit),
+    printType: 'books',
+    fields: 'items(id,volumeInfo(title,authors,publishedDate,imageLinks/thumbnail))',
+    key: GB_KEY,
+  });
+  const res = await fetch(`${GB_SEARCH_URL}?${params.toString()}`, {
+    signal,
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Google Books returned ${res.status}`);
+  const json = (await res.json()) as { items?: GbVolume[] };
+  return (json.items ?? [])
+    .filter((v) => v.id && v.volumeInfo?.title)
+    .map((v): LookupResult => {
+      const info = v.volumeInfo!;
+      const thumb = info.imageLinks?.thumbnail;
+      return {
+        key: `gb:${v.id}`,
+        source: 'googlebooks',
+        title: info.title!,
+        creator: info.authors?.[0] ?? null,
+        year: yearOf(info.publishedDate),
+        // Google sends http:// links; iPhones need https.
+        coverUrl: thumb ? thumb.replace(/^http:\/\//, 'https://') : null,
+      };
+    });
 }
 
 // ---------- TMDB (movies and series) ----------

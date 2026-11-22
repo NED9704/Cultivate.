@@ -36,7 +36,6 @@ import {
   isTmdbConfigured,
   searchTitles,
   type LookupResult,
-  type LookupSource,
 } from '../lib/lookup';
 import { useTheme, useThemedStyles } from '../lib/theme';
 
@@ -70,7 +69,7 @@ export default function AddItemScreen() {
 
   // Title lookup: Open Library for books, TMDB for movies and series
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [source, setSource] = useState<LookupSource | null>(null);
+  const [source, setSource] = useState<'tmdb' | 'openlibrary' | null>(null);
   const [suggestions, setSuggestions] = useState<LookupResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [findingCreator, setFindingCreator] = useState(false);
@@ -108,7 +107,8 @@ export default function AddItemScreen() {
     if (result.creator) setCreator(result.creator);
     if (result.year) setYear(String(result.year));
     setCoverUrl(result.coverUrl);
-    setSource(result.source);
+    // The database records TMDB and Open Library; Google Books results are saved without a source.
+    setSource(result.source === 'googlebooks' ? null : result.source);
     setTitleTyped(false);
     setSuggestions([]);
     Keyboard.dismiss();
@@ -306,7 +306,9 @@ export default function AddItemScreen() {
               {suggestions[0].source === 'tmdb' ? (
                 <TmdbCredit style={styles.suggestionsCredit} />
               ) : (
-                <Text style={styles.credit}>Book info from Open Library</Text>
+                <Text style={styles.credit}>
+                  Book info from {suggestions[0].source === 'googlebooks' ? 'Google Books' : 'Open Library'}
+                </Text>
               )}
             </View>
           )}
@@ -316,7 +318,11 @@ export default function AddItemScreen() {
             <View style={styles.coverRow}>
               <Cover title={title || '?'} type={type} imageUrl={coverUrl} width={40} />
               <Text style={styles.hint}>
-                {coverUrl.startsWith('https://image.tmdb.org') ? 'Poster from TMDB' : 'Cover from Open Library'}
+                {coverUrl.startsWith('https://image.tmdb.org')
+                  ? 'Poster from TMDB'
+                  : coverUrl.includes('books.google')
+                    ? 'Cover from Google Books'
+                    : 'Cover from Open Library'}
               </Text>
               <Pressable
                 onPress={() => setCoverUrl(null)}

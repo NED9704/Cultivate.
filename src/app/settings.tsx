@@ -196,7 +196,7 @@ export default function SettingsScreen() {
           {/* Credits for looked-up details */}
           <Text style={styles.label}>Credits</Text>
           <TmdbCredit logoHeight={12} />
-          <Text style={styles.hint}>Book details and covers from Open Library.</Text>
+          <Text style={styles.hint}>Book details and covers from Open Library and Google Books.</Text>
 
           {/* Sign out */}
           <Pressable
