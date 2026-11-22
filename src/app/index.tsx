@@ -1,21 +1,27 @@
 import Feather from '@expo/vector-icons/Feather';
-import { Redirect } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Redirect, router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  cardShadow,
   fonts,
   itemStatuses,
   mediaTypes,
   minTapSize,
+  radius,
   spacing,
+  type ColorScheme,
   type ItemStatus,
   type MediaType,
   type ThemeColors,
 } from '../../constants/theme';
+import { Cover } from '../components/Cover';
 import { Logo } from '../components/Logo';
+import { StarRating } from '../components/StarRating';
 import { useAuth } from '../lib/auth';
+import { fetchItems, type LibraryItem } from '../lib/items';
 import { supabase } from '../lib/supabase';
 import { useTheme, useThemedStyles } from '../lib/theme';
 
@@ -48,10 +54,33 @@ export default function LibraryScreen() {
     movie: 'want_to',
     series: 'want_to',
   });
+  const insets = useSafeAreaInsets();
+  const [items, setItems] = useState<LibraryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoadError(null);
+    try {
+      setItems(await fetchItems());
+    } catch {
+      setLoadError('Couldn’t load your shelf. Check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Reload whenever the Library comes back into view, e.g. after adding an item.
+  useFocusEffect(
+    useCallback(() => {
+      if (session) load();
+    }, [session, load]),
+  );
 
   if (!session) return <Redirect href="/sign-in" />;
   const active = mediaTypes.find((m) => m.key === activeType)!;
   const activeStatus = statusByType[activeType];
+  const shown = items.filter((i) => i.media_type === activeType && i.status === activeStatus);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
@@ -130,17 +159,79 @@ export default function LibraryScreen() {
           </View>
         </View>
 
-        {/* Empty state message */}
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Nothing here yet</Text>
-          <Text style={styles.emptyText}>{emptyMessages[activeType][activeStatus]}</Text>
-        </View>
+        {loading && items.length === 0 ? (
+          <ActivityIndicator color={colors.textSecondary} style={styles.loader} />
+        ) : loadError && items.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>{loadError}</Text>
+            <Pressable onPress={load} accessibilityRole="button" style={styles.retry}>
+              <Text style={styles.retryText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <FlatList
+            data={shown}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => <ItemCard item={item} />}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>Nothing here yet</Text>
+                <Text style={styles.emptyText}>{emptyMessages[activeType][activeStatus]}</Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* The "+" button */}
+        <Pressable
+          onPress={() =>
+            router.push({ pathname: '/add', params: { type: activeType, status: activeStatus } })
+          }
+          accessibilityRole="button"
+          accessibilityLabel={`Add a ${active.singular.toLowerCase()}`}
+          style={({ pressed }) => [
+            styles.addButton,
+            { bottom: insets.bottom + spacing.md },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Feather name="plus" size={30} color={colors.onAccentIcon} />
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 }
 
-const makeStyles = (c: ThemeColors) =>
+function ItemCard({ item }: { item: LibraryItem }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const details = [item.creator, item.year].filter(Boolean).join(' · ');
+  return (
+    <View style={styles.card}>
+      <Cover title={item.title} type={item.media_type} imageUrl={item.cover_image_url} />
+      <View style={styles.cardText}>
+        <Text style={styles.cardTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        {details ? (
+          <Text style={styles.cardDetails} numberOfLines={1}>
+            {details}
+          </Text>
+        ) : null}
+        {item.status === 'finished' && item.rating ? (
+          <View style={styles.cardStars}>
+            <StarRating value={item.rating} size={14} color={colors.accent} emptyColor={colors.muted} />
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+const makeStyles = (c: ThemeColors, scheme: ColorScheme) =>
   StyleSheet.create({
   screen: {
     flex: 1,
@@ -266,4 +357,38 @@ const makeStyles = (c: ThemeColors) =>
     textAlign: 'center',
     lineHeight: 22,
   },
+  loader: { marginTop: spacing.xl },
+  retry: { minHeight: minTapSize, justifyContent: 'center', marginTop: spacing.sm },
+  retryText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    color: c.accentText,
+    textDecorationLine: 'underline',
+  },
+  separator: { height: spacing.sm + 2 },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: c.surface,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+    ...cardShadow(scheme, c),
+  },
+  cardText: { flex: 1 },
+  cardTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: c.onSurface, lineHeight: 21 },
+  cardDetails: { fontFamily: fonts.body, fontSize: 14, color: c.muted, marginTop: 2 },
+  cardStars: { marginTop: spacing.xs + 2 },
+  addButton: {
+    position: 'absolute',
+    right: spacing.md,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: c.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...cardShadow(scheme, c),
+  },
+  pressed: { opacity: 0.8 },
 });

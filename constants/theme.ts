@@ -28,6 +28,8 @@ const darkColors = {
   accent: '#B85E00',
   /** Text on sienna (always bold) */
   onAccent: '#362304',
+  /** Icons on a sienna button, e.g. the "+" (creme reads better than brown on sienna) */
+  onAccentIcon: '#FBF4E9',
   /** Sienna for text and icons on the background (shade chosen so it stays readable):
    *  the selected Books / Movies / Series word, the selected status and the logo dot */
   accentText: '#D9781F',
@@ -35,12 +37,18 @@ const darkColors = {
   divider: '#6B4532',
   /** Error messages on beige cards */
   error: '#8A2A00',
+  /** Error messages on the background */
+  errorText: '#F2A27E',
   /** Soft warm shadow */
   shadow: '#1A1002',
   /** Media-type accents — always pair with an icon and a label */
   book: '#B85E00',
   movie: '#A87452',
   series: '#C9A06A',
+  /** Initials on each type's cover placeholder (picked for readable contrast) */
+  bookCoverText: '#FBF4E9',
+  movieCoverText: '#FBF4E9',
+  seriesCoverText: '#362304',
 };
 
 export type ThemeColors = typeof darkColors;
@@ -59,13 +67,18 @@ const lightColors: ThemeColors = {
   inputBackground: '#FBF4E9',
   accent: '#B85E00',
   onAccent: '#362304',
+  onAccentIcon: '#FBF4E9',
   accentText: '#B85E00',
   divider: '#D9C4A8',
   error: '#8A2A00',
+  errorText: '#8A2A00',
   shadow: '#6B4532',
   book: '#B85E00',
   movie: '#A87452',
   series: '#C9A06A',
+  bookCoverText: '#FBF4E9',
+  movieCoverText: '#FBF4E9',
+  seriesCoverText: '#362304',
 };
 
 export type ColorScheme = 'light' | 'dark';
@@ -92,12 +105,25 @@ export type MediaType = 'book' | 'movie' | 'series';
 export const mediaTypes: {
   key: MediaType;
   label: string;
+  /** One item, e.g. "Book" */
+  singular: string;
+  /** What the creator field is called for this type */
+  creatorLabel: string;
   icon: 'book-open' | 'film' | 'tv';
 }[] = [
-  { key: 'book', label: 'Books', icon: 'book-open' },
-  { key: 'movie', label: 'Movies', icon: 'film' },
-  { key: 'series', label: 'Series', icon: 'tv' },
+  { key: 'book', label: 'Books', singular: 'Book', creatorLabel: 'Author', icon: 'book-open' },
+  { key: 'movie', label: 'Movies', singular: 'Movie', creatorLabel: 'Director', icon: 'film' },
+  { key: 'series', label: 'Series', singular: 'Series', creatorLabel: 'Creator', icon: 'tv' },
 ];
+
+/** Background and initials colour for a type's cover placeholder */
+export function coverColors(type: MediaType, c: ThemeColors) {
+  return {
+    book: { bg: c.book, text: c.bookCoverText },
+    movie: { bg: c.movie, text: c.movieCoverText },
+    series: { bg: c.series, text: c.seriesCoverText },
+  }[type];
+}
 
 /** Matches library_items.status in the database. "finished" is shown as "Done". */
 export type ItemStatus = 'want_to' | 'in_progress' | 'finished';
