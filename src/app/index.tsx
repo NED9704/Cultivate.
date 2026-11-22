@@ -223,18 +223,18 @@ export default function LibraryScreen() {
           />
         )}
 
-        {/* The "+" button */}
+      </View>
+
+      {/* The "+" button: a full-width strip along the bottom that centres it.
+          Taps on the empty parts of the strip go through to the list. */}
+      <View style={[styles.addBar, { bottom: insets.bottom + spacing.md }]} pointerEvents="box-none">
         <Pressable
           onPress={() =>
             router.push({ pathname: '/add', params: { type: activeType, status: activeStatus } })
           }
           accessibilityRole="button"
           accessibilityLabel={`Add a ${active.singular.toLowerCase()}`}
-          style={({ pressed }) => [
-            styles.addButton,
-            { bottom: insets.bottom + spacing.md },
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
         >
           <Feather name="plus" size={30} color={colors.onAccentIcon} />
         </Pressable>
@@ -440,9 +440,13 @@ const makeStyles = (c: ThemeColors, scheme: ColorScheme) =>
   cardTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: c.onSurface, lineHeight: 21 },
   cardDetails: { fontFamily: fonts.body, fontSize: 14, color: c.muted, marginTop: 2 },
   cardStars: { marginTop: spacing.xs + 2 },
-  addButton: {
+  addBar: {
     position: 'absolute',
-    right: spacing.md,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  addButton: {
     width: 60,
     height: 60,
     borderRadius: 30,
