@@ -32,6 +32,7 @@ import { TmdbCredit } from '../components/TmdbCredit';
 import { useAuth } from '../lib/auth';
 import { addItem, fetchItem, statusChangeFields, updateItem } from '../lib/items';
 import {
+  fetchOpenLibraryDescription,
   fetchTmdbCreator,
   isTmdbConfigured,
   searchTitles,
@@ -73,6 +74,10 @@ export default function AddItemScreen() {
   const [suggestions, setSuggestions] = useState<LookupResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [findingCreator, setFindingCreator] = useState(false);
+  const [description, setDescription] = useState('');
+  const [findingDescription, setFindingDescription] = useState(false);
+  // Editing: the description as loaded, to only send it when it changed.
+  const originalDescription = useRef('');
   // Only look things up after you type in the title, not when it's filled in for you.
   const [titleTyped, setTitleTyped] = useState(false);
   const lookupAvailable = type === 'book' || isTmdbConfigured;
@@ -107,11 +112,20 @@ export default function AddItemScreen() {
     if (result.creator) setCreator(result.creator);
     if (result.year) setYear(String(result.year));
     setCoverUrl(result.coverUrl);
+    if (result.description) setDescription(result.description);
     // The database records TMDB and Open Library; Google Books results are saved without a source.
     setSource(result.source === 'googlebooks' ? null : result.source);
     setTitleTyped(false);
     setSuggestions([]);
     Keyboard.dismiss();
+
+    // Open Library books: the description needs one more lookup.
+    if (result.source === 'openlibrary' && result.olWorkKey && !result.description) {
+      setFindingDescription(true);
+      const text = await fetchOpenLibraryDescription(result.olWorkKey);
+      setFindingDescription(false);
+      if (text) setDescription((current) => (current.trim() ? current : text));
+    }
 
     // Movies and series: the director / creator needs one more lookup.
     if (result.source === 'tmdb' && result.tmdbId && type !== 'book') {
@@ -141,6 +155,8 @@ export default function AddItemScreen() {
         setRating(item.rating);
         setCoverUrl(item.cover_image_url);
         setSource(item.source);
+        setDescription(item.description ?? '');
+        originalDescription.current = item.description ?? '';
       })
       .catch(() => !cancelled && setError('Couldn’t load this item. Go back and try again.'))
       .finally(() => !cancelled && setLoadingItem(false));
@@ -183,6 +199,8 @@ export default function AddItemScreen() {
           cover_image_url: coverUrl,
           // Only when a lookup was used, so editing still works before migration 0004 runs.
           ...(source ? { source } : {}),
+          // Only when changed, so editing still works before migration 0005 runs.
+          ...(description.trim() !== originalDescription.current.trim() ? { description } : {}),
           rating: status === 'finished' ? rating : null,
         });
       } else {
@@ -195,6 +213,7 @@ export default function AddItemScreen() {
           rating,
           cover_image_url: coverUrl,
           source,
+          description,
         });
       }
       router.back();
@@ -368,6 +387,22 @@ export default function AddItemScreen() {
             style={[styles.input, styles.yearInput]}
           />
 
+          <Text style={styles.label}>
+            Description <Text style={styles.optional}>(optional)</Text>
+            {findingDescription ? <Text style={styles.optional}> · looking it up…</Text> : null}
+          </Text>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            textAlignVertical="top"
+            placeholder="A short summary"
+            placeholderTextColor={colors.muted}
+            accessibilityLabel="Description, optional"
+            maxLength={5000}
+            style={[styles.input, styles.descriptionInput]}
+          />
+
           <Text style={styles.label}>Status</Text>
           <View style={styles.optionRow}>
             {itemStatuses.map((s) => {
@@ -483,6 +518,13 @@ const makeStyles = (c: ThemeColors) =>
       fontSize: 17,
     },
     yearInput: { width: 120 },
+    descriptionInput: {
+      minHeight: 110,
+      paddingTop: spacing.sm + 4,
+      paddingBottom: spacing.sm + 4,
+      fontSize: 16,
+      lineHeight: 22,
+    },
     hint: { fontFamily: fonts.body, fontSize: 13, color: c.textSecondary, marginTop: spacing.sm },
     suggestions: {
       marginTop: spacing.sm,

@@ -42,6 +42,10 @@ import { useTheme, useThemedStyles } from '../../lib/theme';
 type NotesState = 'idle' | 'saving' | 'saved' | 'error';
 
 const NOTES_SAVE_DELAY_MS = 800;
+/** Description lines shown before "More". */
+const DESCRIPTION_LINES = 4;
+/** Only offer "More" when the description is likely longer than those lines. */
+const DESCRIPTION_MORE_AFTER = 180;
 
 export default function ItemDetailScreen() {
   const { session } = useAuth();
@@ -55,6 +59,7 @@ export default function ItemDetailScreen() {
   const [notes, setNotes] = useState('');
   const [notesState, setNotesState] = useState<NotesState>('idle');
   const [deleting, setDeleting] = useState(false);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   // The notes text last saved to the server (null until first loaded), to know
   // whether there are unsaved changes. latestNotes always holds what's on screen.
   const savedNotes = useRef<string | null>(null);
@@ -225,6 +230,28 @@ export default function ItemDetailScreen() {
               </View>
             </View>
 
+            {/* Short description: about 4 lines, "More" shows the rest */}
+            {item.description ? (
+              <View style={styles.descriptionBlock}>
+                <Text
+                  style={styles.description}
+                  numberOfLines={descriptionOpen ? undefined : DESCRIPTION_LINES}
+                >
+                  {item.description}
+                </Text>
+                {item.description.length > DESCRIPTION_MORE_AFTER && (
+                  <Pressable
+                    onPress={() => setDescriptionOpen((open) => !open)}
+                    accessibilityRole="button"
+                    accessibilityLabel={descriptionOpen ? 'Show less of the description' : 'Show the full description'}
+                    style={styles.moreButton}
+                  >
+                    <Text style={styles.moreText}>{descriptionOpen ? 'Less' : 'More'}</Text>
+                  </Pressable>
+                )}
+              </View>
+            ) : null}
+
             {/* One-tap status */}
             <Text style={styles.label}>Status</Text>
             <View style={styles.optionRow}>
@@ -359,6 +386,15 @@ const makeStyles = (c: ThemeColors) =>
     details: { fontFamily: fonts.body, fontSize: 16, color: c.textSecondary, marginTop: spacing.xs },
     typeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2, marginTop: spacing.sm },
     typeText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: c.textSecondary },
+    descriptionBlock: { marginTop: spacing.md },
+    description: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: c.textSecondary },
+    moreButton: { minHeight: minTapSize, justifyContent: 'center', alignSelf: 'flex-start' },
+    moreText: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 15,
+      color: c.accentText,
+      textDecorationLine: 'underline',
+    },
     label: {
       fontFamily: fonts.bodySemiBold,
       fontSize: 14,

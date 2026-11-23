@@ -24,6 +24,8 @@ export type NewItem = {
   cover_image_url?: string | null;
   /** Where the details came from, if looked up ('tmdb' items must show the TMDB credit). */
   source?: 'tmdb' | 'openlibrary' | null;
+  /** Short summary, from a lookup or typed by hand. */
+  description?: string | null;
 };
 
 // Notes are deliberately not loaded for the list.
@@ -50,6 +52,7 @@ export async function addItem(item: NewItem): Promise<void> {
     cover_image_url: item.cover_image_url ?? null,
     // Only sent when looked up, so typing by hand still works before migration 0004 runs.
     ...(item.source ? { source: item.source } : {}),
+    ...(item.description?.trim() ? { description: item.description.trim() } : {}),
     rating: isFinished ? (item.rating ?? null) : null,
     finished_date: isFinished ? today() : null,
   });
@@ -61,12 +64,13 @@ export type ItemDetail = LibraryItem & {
   notes: string | null;
   finished_date: string | null;
   source: 'tmdb' | 'openlibrary' | null;
+  description: string | null;
 };
 
 export async function fetchItem(id: string): Promise<ItemDetail> {
   const { data, error } = await supabase
     .from('library_items')
-    .select(`${LIST_COLUMNS}, notes, finished_date, source`)
+    .select(`${LIST_COLUMNS}, notes, finished_date, source, description`)
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -84,6 +88,7 @@ export type ItemPatch = Partial<{
   finished_date: string | null;
   cover_image_url: string | null;
   source: 'tmdb' | 'openlibrary' | null;
+  description: string | null;
 }>;
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -103,6 +108,7 @@ export async function updateItem(id: string, patch: ItemPatch): Promise<void> {
   const clean: ItemPatch = { ...patch };
   if (clean.title !== undefined) clean.title = clean.title.trim();
   if (clean.creator !== undefined) clean.creator = clean.creator?.trim() || null;
+  if (clean.description !== undefined) clean.description = clean.description?.trim() || null;
   const { error } = await supabase.from('library_items').update(clean).eq('id', id);
   if (error) throw error;
 }

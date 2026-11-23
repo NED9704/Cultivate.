@@ -18,9 +18,48 @@ export type LookupResult = {
   creator: string | null;
   year: number | null;
   coverUrl: string | null;
+  /** Short summary. Open Library books get theirs after you pick one. */
+  description: string | null;
   /** TMDB id, used to fetch the director / creator when picked. */
   tmdbId?: number;
+  /** Open Library work key (e.g. "/works/OL123W"), used to fetch the description when picked. */
+  olWorkKey?: string;
 };
+
+/** Longest description we keep; longer ones are cut at a sentence end. */
+const MAX_DESCRIPTION = 1500;
+
+/**
+ * Turns a description from any source into plain text: removes web formatting
+ * (Google Books), Open Library's source links and separators, and extra spaces.
+ */
+export function cleanDescription(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let text = raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    // Open Library: "([source][1])", footnote link lists and "----------" sections
+    .split(/\n-{3,}/)[0]
+    .replace(/\(\[[^\]]*\]\[\d+\]\)/g, '')
+    .replace(/^\s*\[\d+\]:.*$/gm, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  if (!text) return null;
+  if (text.length > MAX_DESCRIPTION) {
+    const cut = text.slice(0, MAX_DESCRIPTION);
+    const lastStop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+    text = (lastStop > 400 ? cut.slice(0, lastStop + 1) : cut.trimEnd() + '…').trim();
+  }
+  return text;
+}
 
 // ---------- Open Library (books) ----------
 
@@ -86,7 +125,29 @@ async function searchOpenLibrary(title: string, signal: AbortSignal, limit: numb
       creator: d.author_name?.[0] ?? null,
       year: typeof d.first_publish_year === 'number' ? d.first_publish_year : null,
       coverUrl: typeof d.cover_i === 'number' ? bookCoverUrl(d.cover_i, 'M') : null,
+      description: null,
+      olWorkKey: d.key!.startsWith('/works/') ? d.key : undefined,
     }));
+}
+
+/** The description of an Open Library work, or null (also if it can't be reached in time). */
+export async function fetchOpenLibraryDescription(workKey: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OL_TIMEOUT_MS + 1000);
+  try {
+    const res = await fetch(`https://openlibrary.org${workKey}.json`, {
+      signal: controller.signal,
+      headers: { 'User-Agent': OL_USER_AGENT, Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { description?: string | { value?: string } };
+    const raw = typeof json.description === 'string' ? json.description : json.description?.value;
+    return cleanDescription(raw);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ---------- Google Books (backup for books) ----------
@@ -102,6 +163,7 @@ type GbVolume = {
     title?: string;
     authors?: string[];
     publishedDate?: string;
+    description?: string;
     imageLinks?: { thumbnail?: string; smallThumbnail?: string };
   };
 };
@@ -111,7 +173,7 @@ async function searchGoogleBooks(title: string, signal: AbortSignal | undefined,
     q: `intitle:${title.trim()}`,
     maxResults: String(limit),
     printType: 'books',
-    fields: 'items(id,volumeInfo(title,authors,publishedDate,imageLinks/thumbnail))',
+    fields: 'items(id,volumeInfo(title,authors,publishedDate,description,imageLinks/thumbnail))',
     key: GB_KEY,
   });
   const res = await fetch(`${GB_SEARCH_URL}?${params.toString()}`, {
@@ -133,6 +195,7 @@ async function searchGoogleBooks(title: string, signal: AbortSignal | undefined,
         year: yearOf(info.publishedDate),
         // Google sends http:// links; iPhones need https.
         coverUrl: thumb ? thumb.replace(/^http:\/\//, 'https://') : null,
+        description: cleanDescription(info.description),
       };
     });
 }
@@ -147,8 +210,20 @@ const TMDB_TOKEN = process.env.EXPO_PUBLIC_TMDB_READ_TOKEN ?? '';
 /** False until the TMDB token is in .env: movie/series lookup is then skipped. */
 export const isTmdbConfigured = TMDB_TOKEN.length > 20;
 
-type TmdbMovie = { id: number; title?: string; release_date?: string; poster_path?: string | null };
-type TmdbShow = { id: number; name?: string; first_air_date?: string; poster_path?: string | null };
+type TmdbMovie = {
+  id: number;
+  title?: string;
+  release_date?: string;
+  poster_path?: string | null;
+  overview?: string;
+};
+type TmdbShow = {
+  id: number;
+  name?: string;
+  first_air_date?: string;
+  poster_path?: string | null;
+  overview?: string;
+};
 
 function tmdbFetch(path: string, params: Record<string, string>, signal?: AbortSignal) {
   const qs = new URLSearchParams({ language: 'en-US', ...params }).toString();
@@ -194,6 +269,7 @@ async function searchTmdb(
         creator: null,
         year: yearOf(type === 'movie' ? r.release_date : r.first_air_date),
         coverUrl: r.poster_path ? posterUrl(r.poster_path) : null,
+        description: cleanDescription(r.overview),
       };
     })
     .filter((r) => r.title);
