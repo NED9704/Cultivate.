@@ -1,11 +1,7 @@
 import { LegalPage } from '../components/LegalPage';
+import { termsOfUse } from '../lib/legal';
 
-// TODO before launch: replace with the real Terms of Use (and host them on a public web page).
+// Text lives in content/legal.json (shared with the web version in docs/).
 export default function TermsScreen() {
-  return (
-    <LegalPage
-      title="Terms of Use"
-      body={'Placeholder — the full Terms of Use will be published here before Cultivate. launches.'}
-    />
-  );
+  return <LegalPage doc={termsOfUse} />;
 }
