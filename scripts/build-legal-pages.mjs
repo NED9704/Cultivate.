@@ -9,6 +9,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const legal = JSON.parse(readFileSync(join(root, 'content/legal.json'), 'utf8'));
 const { details } = legal;
 const outDir = join(root, 'docs');
+/** The website address the pages are published at (GitHub Pages custom domain). */
+const SITE_DOMAIN = 'my-cultivate.com';
 
 const escape = (s) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -105,4 +107,6 @@ writeFileSync(join(outDir, 'privacy.html'), documentPage(legal.privacy));
 writeFileSync(join(outDir, 'terms.html'), documentPage(legal.terms));
 // Tell GitHub Pages to serve the files as they are.
 writeFileSync(join(outDir, '.nojekyll'), '');
+// Serve the pages on our own domain (DNS for it points at GitHub Pages).
+writeFileSync(join(outDir, 'CNAME'), `${SITE_DOMAIN}\n`);
 console.log('Wrote docs/index.html, docs/privacy.html and docs/terms.html');
